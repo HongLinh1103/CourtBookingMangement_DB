@@ -284,6 +284,77 @@ CREATE INDEX ix_booking_details_booking ON booking.booking_details (booking_Id);
 CREATE INDEX ix_booking_details_court_date ON booking.booking_details (court_Id, booking_date);
 
 
+-- =====================================================================
+-- PAYMENT (partitioned)
+-- =====================================================================
+
+CREATE TABLE payment.payment_methods (
+    id        UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    code      VARCHAR(30) NOT NULL,   -- CASH / BANK_TRANSFER / QR / VNPAY / MOMO
+    name      VARCHAR(100) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+CREATE UNIQUE INDEX ux_payment_methods_code ON payment.payment_methods (code);
+
+CREATE TABLE payment.payments (
+    id                UUID NOT NULL DEFAULT uuid_generate_v7(),
+    booking_id        UUID NOT NULL,
+    payment_method_id UUID NOT NULL REFERENCES payment.payment_methods(id),
+    amount            NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+    status            VARCHAR(20) NOT NULL DEFAULT 'pending',
+    paid_at           TIMESTAMPTZ,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by        UUID REFERENCES auth.users(id),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (id)
+);
+
+CREATE INDEX ix_payments_booking ON payment.payments (booking_id);
+
+CREATE TABLE payment.transactions (
+    id                UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    payment_id        UUID NOT NULL,
+    gateway_reference VARCHAR(100),
+    status            VARCHAR(20) NOT NULL DEFAULT 'pending',
+    raw_response      JSONB,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_transactions_payment ON payment.transactions (payment_id);
+CREATE UNIQUE INDEX ux_transactions_gateway_ref ON payment.transactions (gateway_reference) WHERE gateway_reference IS NOT NULL;
+
+CREATE TABLE payment.invoices (
+    id           UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    booking_id   UUID NOT NULL,
+    invoice_number VARCHAR(30) NOT NULL,
+    issued_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    total_amount NUMERIC(12,2) NOT NULL CHECK (total_amount >= 0)
+);
+CREATE UNIQUE INDEX ux_invoices_booking ON payment.invoices (booking_id);
+CREATE UNIQUE INDEX ux_invoices_number ON payment.invoices (invoice_number);
+
+CREATE TABLE payment.invoice_items (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    invoice_id  UUID NOT NULL REFERENCES payment.invoices(id) ON DELETE CASCADE,
+    description VARCHAR(255) NOT NULL,
+    quantity    NUMERIC(10,2) NOT NULL DEFAULT 1,
+    unit_price  NUMERIC(10,2) NOT NULL,
+    line_total  NUMERIC(12,2) NOT NULL
+);
+CREATE INDEX ix_invoice_items_invoice ON payment.invoice_items (invoice_id);
+
+CREATE TABLE payment.refunds (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    payment_id  UUID NOT NULL,
+    amount      NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+    status      VARCHAR(20) NOT NULL DEFAULT 'pending',
+    reason      TEXT,
+    requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    processed_at TIMESTAMPTZ,
+    processed_by UUID REFERENCES auth.users(id)
+);
+CREATE INDEX ix_refunds_payment ON payment.refunds (payment_id);
+
+
  
 
 
