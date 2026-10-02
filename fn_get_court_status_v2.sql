@@ -92,10 +92,3 @@ ORDER BY
     bd.start_time;
 
 $$;
-
-SELECT *
-FROM booking.fn_get_court_status
-(
-    'e30d74f1-2db6-4e42-bd9f-77431e59f501',
-    '2026-08-14'
-);

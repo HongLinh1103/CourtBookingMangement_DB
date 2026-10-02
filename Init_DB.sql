@@ -354,7 +354,22 @@ CREATE TABLE payment.refunds (
 );
 CREATE INDEX ix_refunds_payment ON payment.refunds (payment_id);
 
+ALTER TABLE booking.bookings 
+ADD COLUMN payment_method VARCHAR(30) NOT NULL DEFAULT 'Cash';
 
+ALTER TABLE booking.booking_details  
+ADD COLUMN customer_name VARCHAR(50) NOT NULL;
+
+-- Step 1: Drop the foreign key constraint linking to customer.customers
+ALTER TABLE booking.bookings 
+DROP CONSTRAINT IF EXISTS bookings_customer_id_fkey;
+
+-- (Optional fallback if the constraint name kept your uppercase 'Id')
+-- ALTER TABLE booking.bookings DROP CONSTRAINT IF EXISTS bookings_customer_Id_fkey;
+
+-- Step 2: Change the customer_id column to allow NULL values
+ALTER TABLE booking.bookings 
+ALTER COLUMN customer_id DROP NOT NULL;
  
 
 
